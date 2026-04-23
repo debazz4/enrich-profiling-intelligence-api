@@ -17,7 +17,7 @@ class ProfileListCreateView(APIView):
     def post(self, request):
         name = request.data.get("name")
 
-        # name valkidation
+        # name validation
         if name is None or name == "":
             return Response(
                 {"status": "error", "message": "Name is required"},
@@ -85,6 +85,8 @@ class ProfileListCreateView(APIView):
                 {"status": "error", "message": "Invalid query parameters"},
                 status=422
             )
+        #sorting
+        queryset = apply_sorting(queryset, request.GET) 
 
         # pagination
         try:
@@ -142,9 +144,12 @@ class ProfileSearchView(APIView):
     def get(self, request):
         query = request.GET.get("q")
 
-        if not query:
+        if not query or query.strip() == "":
             return Response(
-                {"status": "error", "message": "Missing query"},
+                {
+                    "status": "error",
+                    "message": "Invalid query parameters"
+                },
                 status=400
             )
 
