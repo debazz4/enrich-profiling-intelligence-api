@@ -2,6 +2,7 @@
 from django.db import models
 from uuid6 import uuid7
 
+
 class Profile(models.Model):
     """
     Stores enriched profile data generated from external APIs.
@@ -13,12 +14,12 @@ class Profile(models.Model):
 
     gender = models.CharField(max_length=10)
     gender_probability = models.FloatField()
-    sample_size = models.IntegerField()
 
     age = models.IntegerField()
     age_group = models.CharField(max_length=20)
 
-    country_id = models.CharField(max_length=10)
+    country_id = models.CharField(max_length=2)
+    country_name = models.CharField(max_length=255)
     country_probability = models.FloatField()
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -30,3 +31,11 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["gender"]),
+            models.Index(fields=["country_id"]),
+            models.Index(fields=["age"]),
+            models.Index(fields=["age_group"]),
+        ]

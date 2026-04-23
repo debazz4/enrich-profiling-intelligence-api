@@ -1,6 +1,8 @@
 """Services for handling data enrichment for profiles."""
 import requests
 
+from iso3166 import countries
+
 
 class ExternalAPIError(Exception):
     """Custom exception class for error handling."""
@@ -18,12 +20,44 @@ def get_age_group(age):
         return "adult"
     return "senior"
 
+def get_country_name(alpha2):
+    """Country name helper."""
+    country = countries.get(alpha2).name
+    return country if country else alpha2
 
 def enrich_profile(name):
+    try:
+        # Call APIs with timeouts to prevent hanging
+        gender_data = requests.get(
+            f"https://api.genderize.io?name={name}",
+            timeout=5
+        )
+        age_data = requests.get(
+            f"https://api.agify.io?name={name}",
+            timeout=5
+        )
+        country_data = requests.get(
+            f"https://api.nationalize.io?name={name}",
+            timeout=5
+        )
+
+        # Prevents invalid JSON crashes
+        gender_data.raise_for_status()
+        age_data.raise_for_status()
+        country_data.raise_for_status()
+
+        gender_res = gender_data.json()
+        age_res = age_data.json()
+        country_res = country_data.json()
+
+    except Exception:
+        # Any external failure
+        raise ExternalAPIError("External API")
+    
     # Call APIs
-    gender_res = requests.get(f"https://api.genderize.io?name={name}").json()
-    age_res = requests.get(f"https://api.agify.io?name={name}").json()
-    country_res = requests.get(f"https://api.nationalize.io?name={name}").json()
+    # gender_res = requests.get(f"https://api.genderize.io?name={name}").json()
+    # age_res = requests.get(f"https://api.agify.io?name={name}").json()
+    # country_res = requests.get(f"https://api.nationalize.io?name={name}").json()
 
     # Gender validation
     if gender_res.get("gender") is None or gender_res.get("count") == 0:
@@ -43,6 +77,8 @@ def enrich_profile(name):
         key=lambda x: x["probability"]
     )
 
+    country_id = top_country["country_id"]
+
     return {
         "gender": gender_res["gender"],
         "gender_probability": gender_res["probability"],
@@ -50,5 +86,6 @@ def enrich_profile(name):
         "age": age_res["age"],
         "age_group": get_age_group(age_res["age"]),
         "country_id": top_country["country_id"],
+        "country_name": get_country_name(country_id),
         "country_probability": top_country["probability"],
     }

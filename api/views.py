@@ -2,9 +2,14 @@ from django.db import IntegrityError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
 from .models import Profile
 from .serializers import ProfileSerializer, ProfileListSerializer
 from .services import enrich_profile, ExternalAPIError
+from .filters import apply_filters
+from .sorting import apply_sorting
+from .pagination import apply_pagination
+from .nlp_parser import parse_query
 
 
 class ProfileListCreateView(APIView):
@@ -72,26 +77,33 @@ class ProfileListCreateView(APIView):
     def get(self, request):
         queryset = Profile.objects.all()
 
-        gender = request.GET.get("gender")
-        country_id = request.GET.get("country_id")
-        age_group = request.GET.get("age_group")
+        # filtering
+        try:
+            queryset = apply_filters(queryset, request.GET)
+        except ValueError:
+            return Response(
+                {"status": "error", "message": "Invalid query parameters"},
+                status=422
+            )
 
-        if gender:
-            queryset = queryset.filter(gender__iexact=gender)
+        # pagination
+        try:
+            data, total, page, limit = apply_pagination(queryset, request.GET)
+        except ValueError:
+            return Response(
+                {"status": "error", "message": "Invalid query parameters"},
+                status=422
+            )
 
-        if country_id:
-            queryset = queryset.filter(country_id__iexact=country_id)
-
-        if age_group:
-            queryset = queryset.filter(age_group__iexact=age_group)
-
-        serializer = ProfileListSerializer(queryset, many=True)
+        serializer = ProfileListSerializer(data, many=True)
 
         return Response({
-            "status": "success",
-            "count": queryset.count(),
-            "data": serializer.data
-        })
+        "status": "success",
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "data": serializer.data
+    })
 
 class ProfileDetailView(APIView):
 
@@ -123,3 +135,39 @@ class ProfileDetailView(APIView):
 
         profile.delete()
         return Response(status=204)
+    
+
+class ProfileSearchView(APIView):
+    """Handles query search"""
+    def get(self, request):
+        query = request.GET.get("q")
+
+        if not query:
+            return Response(
+                {"status": "error", "message": "Missing query"},
+                status=400
+            )
+
+        filters = parse_query(query)
+
+        if not filters:
+            return Response(
+                {"status": "error", "message": "Unable to interpret query"},
+                status=400
+            )
+
+        queryset = Profile.objects.all()
+        queryset = apply_filters(queryset, filters)
+        queryset = apply_sorting(queryset, request.GET)
+
+        data, total, page, limit = apply_pagination(queryset, request.GET)
+
+        serializer = ProfileListSerializer(data, many=True)
+
+        return Response({
+            "status": "success",
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "data": serializer.data
+        })

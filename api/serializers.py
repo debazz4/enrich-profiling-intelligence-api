@@ -52,4 +52,5 @@ class ProfileListSerializer(serializers.ModelSerializer):
             "age",
             "age_group",
             "country_id",
+            "country_name"
         ]
