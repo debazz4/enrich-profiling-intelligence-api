@@ -35,6 +35,9 @@ def apply_filters(queryset, params):
                 country_probability__gte=float(min_country_prob)
             )
 
+        if country_id:
+            queryset = queryset.filter(country_id__gte=country_id)
+
         return queryset
 
     except ValueError:

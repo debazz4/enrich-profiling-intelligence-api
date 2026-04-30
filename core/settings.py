@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +28,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = "api.User"
+
 
 # Application definition
 
@@ -40,13 +43,16 @@ INSTALLED_APPS = [
 
     # installed
     'rest_framework',
+    "rest_framework_simplejwt.token_blacklist",
     'corsheaders',
     'api',
 ]
 
 MIDDLEWARE = [
-    'core.middleware.ForceCorsHeaderMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    # 'api.auth.middleware.CookieJWTAuthMiddleware',
+    # 'core.middleware.ForceCorsHeaderMiddleware',
+    'core.middleware.RequestLoggingMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -55,11 +61,33 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
+
     
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5500"
+]
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:5500"
+]
+
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "authorization",
+    "content-type",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
 
 ROOT_URLCONF = 'core.urls'
 
@@ -129,3 +157,73 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+GITHUB_CLIENT_ID = "Ov23lief7uVb6gEsCegG"
+GITHUB_CLIENT_SECRET = "0a5e17de6eadb3e355557c8398e1d84f2c425d7c"
+GITHUB_REDIRECT_URI = "http://127.0.0.1:8000/api/v1/auth/github/callback/"
+
+GITHUB_REDIRECT_URI_CLI = "http://127.0.0.1:8000/api/v1/auth/github/cli/callback/"
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "api.auth.CookieJWTAuthentication",
+    ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # CSRF token must be readable by browser
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:8000"]
+
+SESSION_COOKIE_SECURE = False  # set False only in local dev
+CSRF_COOKIE_SECURE = True
+CSRF_USE_SESSIONS = False
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication"
+    ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "api.throttles.BurstRateThrottle",
+        "api.throttles.SustainedRateThrottle",
+        "api.throttles.SearchRateThrottle",
+        "api.throttles.ExportRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "burst": "10/sec",
+        "sustained": "200/day",
+        "search": "1/min",
+        "export": "1/min",
+    },
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+}
+
+LOGGING = {
+    "version": 1,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"}
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "insighta-cache",
+    }
+}
+
+HOLD_VERIFIER = None

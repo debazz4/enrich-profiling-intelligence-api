@@ -1,23 +1,20 @@
 def apply_sorting(queryset, params):
+
     sort_by = params.get("sort_by")
     order = params.get("order", "asc")
 
-    allowed_fields = ["age", "created_at", "gender_probability"]
-    allowed_orders = ["asc", "desc"]
+    allowed_fields = {
+        "age": "age",
+        "created_at": "created_at",
+        "gender_probability": "gender_probability"
+    }
 
-    # Validate sort_by
-    if sort_by:
-        if sort_by not in allowed_fields:
-            raise ValueError("Invalid query parameters")
+    if sort_by not in allowed_fields:
+        return queryset
 
-    # Validate order
-    if order not in allowed_orders:
-        raise ValueError("Invalid query parameters")
+    field = allowed_fields[sort_by]
 
-    # Apply sorting
-    if sort_by:
-        if order == "desc":
-            sort_by = f"-{sort_by}"
-        queryset = queryset.order_by(sort_by)
+    if order == "desc":
+        field = f"-{field}"
 
-    return queryset
+    return queryset.order_by(field)
